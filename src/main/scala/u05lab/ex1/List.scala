@@ -2,6 +2,8 @@ package u05lab.ex1
 
 import u05lab.ex1.List
 
+import scala.annotation.tailrec
+
 // Ex 1. implement the missing methods both with recursion or with using fold, map, flatMap, and filters
 // List as a pure interface
 enum List[A]:
@@ -56,19 +58,57 @@ enum List[A]:
     case Nil() => true
     case _ => false
 
-  def reverse(): List[A] = foldLeft[List[A]](Nil())((l, e) => e :: l)
+  def reverse: List[A] = foldLeft[List[A]](Nil())((l, e) => e :: l)
 
   /** EXERCISES */
-  def zipRight: List[(A, Int)] = ???
+  def zipRight: List[(A, Int)] =
+    this.foldRight((Nil[(A, Int)](), this.length))((elem, acc) => ((elem, acc._2 - 1) :: acc._1, acc._2 - 1))._1
 
-  def partition(pred: A => Boolean): (List[A], List[A]) = ???
+  def zipRightWithFoldLeft: List[(A, Int)] =
+    this.foldLeft((Nil[(A, Int)](), 0))((acc, elem) => ((elem, acc._2) :: acc._1, acc._2 + 1))._1.reverse
 
-  def span(pred: A => Boolean): (List[A], List[A]) = ???
+  def zipRightWithRecursion: List[(A, Int)] =
+    def zip(i: Int, list: List[A]): List[(A, Int)] = list match
+      case Nil() => Nil()
+      case h :: t => (h, i) :: zip(i + 1, t)
+    zip(0, this)
+
+  def partition(pred: A => Boolean): (List[A], List[A]) = (filter(pred), filter(!pred(_)))
+
+  def partitionWithFoldLeft(pred: A => Boolean): (List[A], List[A]) =
+    this.foldLeft((Nil(), Nil()))((acc, e) => if pred(e) then (acc._1.append(List(e)), acc._2) else (acc._1, acc._2.append(List(e))))
+
+  def partitionWithRecursion(pred: A => Boolean): (List[A], List[A]) =
+    @tailrec
+    def part(l: List[A], trueList: List[A], falseList: List[A]): (List[A], List[A]) = l match
+      case h :: t if pred(h) => part(t, trueList.append(h :: Nil()), falseList)
+      case h :: t => part(t, trueList, falseList.append(h :: Nil()))
+      case _ => (trueList, falseList)
+    part(this, Nil(), Nil())
+
+  def span(pred: A => Boolean): (List[A], List[A]) =
+    this.foldRight((Nil[A](), Nil[A]()))((elem, acc) => if pred(elem) then (elem :: acc._1, acc._2) else (Nil(), elem :: acc._1 append acc._2))
+
+  def spanWithRecursion(pred: A => Boolean): (List[A], List[A]) = this match
+    case h :: t if pred(h) => val next = t.spanWithRecursion(pred); (h :: next._1, next._2)
+    case _ => (Nil(), this)
 
   /** @throws UnsupportedOperationException if the list is empty */
-  def reduce(op: (A, A) => A): A = ???
+  def reduce(op: (A, A) => A): A = this match
+    case Nil() => throw UnsupportedOperationException()
+    case h :: t => t.foldLeft(h)(op)
 
-  def takeRight(n: Int): List[A] = ???
+  def takeRightWithRecursion(n: Int): List[A] =
+    @tailrec
+    def takRight(l: List[A], n: Int): List[A] =l match
+      case _ :: t if n > 0 => takRight(t, n - 1)
+      case _ => l
+    takRight(this, length - n)
+
+  def takeRight(n: Int): List[A] =
+    this.foldRight(Nil())((elem, acc) => if acc.length < n then elem :: acc else acc)
+
+  def collect[B](p: PartialFunction[A, B]): List[B] = filter(p.isDefinedAt).map(p.apply)
 
 // Factories
 object List:
